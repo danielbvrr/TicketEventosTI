@@ -23,7 +23,7 @@
         {% endwith %}
 
         <!-- Formulário de Edição -->
-        <form action="/editar/{{ index }}" method="post">
+        <form action="/editar/{{ evento.id }}" method="post">
             <div class="mb-3">
                 <label class="form-label">Número do Processo SEI ou Documento:</label>
                 <input type="text" name="numero_sei" class="form-control" value="{{ evento.numero_sei }}" required>
@@ -44,19 +44,38 @@
                 <input type="date" name="data_fim" class="form-control" value="{{ evento.data_fim }}" required>
             </div>
 
+            <!-- Seleção de Técnicos -->
             <div class="mb-3">
                 <label class="form-label">Técnicos Responsáveis:</label>
-                <input type="text" name="tecnicos" class="form-control" value="{{ evento.tecnicos }}" required>
+                <select name="tecnicos" class="form-control" multiple required>
+                    {% for tecnico in tecnicos_cadastrados %}
+                        <option value="{{ tecnico.id }}" {% if tecnico.id in tecnicos_evento|map(attribute='id') %}selected{% endif %}>
+                            {{ tecnico.nome }}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
 
+            <!-- Equipamentos e Tombamentos -->
             <div class="mb-3">
-                <label class="form-label">Equipamentos Utilizados:</label>
-                <input type="text" name="equipamentos" class="form-control" value="{{ evento.equipamentos }}">
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Tombamentos:</label>
-                <input type="text" name="tombamentos" class="form-control" value="{{ evento.tombamentos }}">
+                <label class="form-label">Equipamentos e Tombamentos:</label>
+                <div id="equipamentos-container">
+                    {% for equipamento in equipamentos_evento %}
+                        <div class="equipamento-item mb-2">
+                            <select name="equipamentos_tipo[]" class="form-control mb-2" required>
+                                {% for tipo in tipos_equipamentos %}
+                                    <option value="{{ tipo.id }}" {% if tipo.id == equipamento.tipo_id %}selected{% endif %}>
+                                        {{ tipo.nome }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" name="equipamentos_marca_modelo[]" class="form-control mb-2" placeholder="Marca/Modelo" value="{{ equipamento.marca_modelo }}" required>
+                            <input type="text" name="equipamentos_tombamento[]" class="form-control mb-2" placeholder="Tombamento" value="{{ equipamento.tombamento }}" required>
+                            <button type="button" class="btn btn-danger btn-sm remover-equipamento">Remover</button>
+                        </div>
+                    {% endfor %}
+                </div>
+                <button type="button" id="adicionar-equipamento" class="btn btn-secondary btn-sm">Adicionar Equipamento</button>
             </div>
 
             <button type="submit" class="btn btn-success w-100">
@@ -66,15 +85,30 @@
         </form>
     </div>
 
-    <!-- Validação de Datas -->
+    <!-- Script para adicionar/remover equipamentos -->
     <script>
-        document.querySelector('form').addEventListener('submit', function(event) {
-            const dataInicio = new Date(document.querySelector('input[name="data_inicio"]').value);
-            const dataFim = new Date(document.querySelector('input[name="data_fim"]').value);
+        // Adicionar novo campo de equipamento
+        document.getElementById('adicionar-equipamento').addEventListener('click', function() {
+            const container = document.getElementById('equipamentos-container');
+            const novoEquipamento = `
+                <div class="equipamento-item mb-2">
+                    <select name="equipamentos_tipo[]" class="form-control mb-2" required>
+                        {% for tipo in tipos_equipamentos %}
+                            <option value="{{ tipo.id }}">{{ tipo.nome }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="text" name="equipamentos_marca_modelo[]" class="form-control mb-2" placeholder="Marca/Modelo" required>
+                    <input type="text" name="equipamentos_tombamento[]" class="form-control mb-2" placeholder="Tombamento" required>
+                    <button type="button" class="btn btn-danger btn-sm remover-equipamento">Remover</button>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', novoEquipamento);
+        });
 
-            if (dataFim < dataInicio) {
-                alert("A data de fim não pode ser anterior à data de início!");
-                event.preventDefault();
+        // Remover campo de equipamento
+        document.addEventListener('click', function(event) {
+            if (event.target.classList.contains('remover-equipamento')) {
+                event.target.closest('.equipamento-item').remove();
             }
         });
     </script>
