@@ -1,38 +1,82 @@
-<form action="/editar/{{ index }}" method="post">
-    <div class="mb-3">
-        <label class="form-label">Número do Processo SEI ou Documento:</label>
-        <input type="text" name="numero_sei" class="form-control" value="{{ evento.numero_sei }}" required>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Evento</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Editar Evento</h1>
+
+        <!-- Mensagens de feedback -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Formulário de Edição -->
+        <form action="/editar/{{ index }}" method="post">
+            <div class="mb-3">
+                <label class="form-label">Número do Processo SEI ou Documento:</label>
+                <input type="text" name="numero_sei" class="form-control" value="{{ evento.numero_sei }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Tipo de Evento:</label>
+                <input type="text" name="tipo" class="form-control" value="{{ evento.tipo }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Data de Início:</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ evento.data_inicio }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Data de Fim:</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ evento.data_fim }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Técnicos Responsáveis:</label>
+                <input type="text" name="tecnicos" class="form-control" value="{{ evento.tecnicos }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Equipamentos Utilizados:</label>
+                <input type="text" name="equipamentos" class="form-control" value="{{ evento.equipamentos }}">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Tombamentos:</label>
+                <input type="text" name="tombamentos" class="form-control" value="{{ evento.tombamentos }}">
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">
+                <i class="bi bi-save"></i> Salvar Alterações
+            </button>
+            <a href="/" class="btn btn-secondary w-100 mt-2">Cancelar</a>
+        </form>
     </div>
 
-    <div class="mb-3">
-        <label class="form-label">Tipo de Evento:</label>
-        <input type="text" name="tipo" class="form-control" value="{{ evento.tipo }}" required>
-    </div>
+    <!-- Validação de Datas -->
+    <script>
+        document.querySelector('form').addEventListener('submit', function(event) {
+            const dataInicio = new Date(document.querySelector('input[name="data_inicio"]').value);
+            const dataFim = new Date(document.querySelector('input[name="data_fim"]').value);
 
-    <div class="mb-3">
-        <label class="form-label">Data de Início:</label>
-        <input type="date" name="data_inicio" class="form-control" value="{{ evento.data_inicio }}" required>
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Data de Fim:</label>
-        <input type="date" name="data_fim" class="form-control" value="{{ evento.data_fim }}" required>
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Técnicos Responsáveis:</label>
-        <input type="text" name="tecnicos" class="form-control" value="{{ evento.tecnicos }}" required>
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Equipamentos Utilizados:</label>
-        <input type="text" name="equipamentos" class="form-control" value="{{ evento.equipamentos }}">
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Tombamentos:</label>
-        <input type="text" name="tombamentos" class="form-control" value="{{ evento.tombamentos }}">
-    </div>
-
-    <button type="submit" class="btn btn-success w-100">Salvar Alterações</button>
-</form>
+            if (dataFim < dataInicio) {
+                alert("A data de fim não pode ser anterior à data de início!");
+                event.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
