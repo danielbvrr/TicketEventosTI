@@ -1,0 +1,38 @@
+<form action="/editar/{{ index }}" method="post">
+    <div class="mb-3">
+        <label class="form-label">Número do Processo SEI ou Documento:</label>
+        <input type="text" name="numero_sei" class="form-control" value="{{ evento.numero_sei }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Tipo de Evento:</label>
+        <input type="text" name="tipo" class="form-control" value="{{ evento.tipo }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Data de Início:</label>
+        <input type="date" name="data_inicio" class="form-control" value="{{ evento.data_inicio }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Data de Fim:</label>
+        <input type="date" name="data_fim" class="form-control" value="{{ evento.data_fim }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Técnicos Responsáveis:</label>
+        <input type="text" name="tecnicos" class="form-control" value="{{ evento.tecnicos }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Equipamentos Utilizados:</label>
+        <input type="text" name="equipamentos" class="form-control" value="{{ evento.equipamentos }}">
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Tombamentos:</label>
+        <input type="text" name="tombamentos" class="form-control" value="{{ evento.tombamentos }}">
+    </div>
+
+    <button type="submit" class="btn btn-success w-100">Salvar Alterações</button>
+</form>
