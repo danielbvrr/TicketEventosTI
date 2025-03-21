@@ -1,5 +1,10 @@
-from flask import Flask, render_template, request, redirect, flash, jsonify
+from flask import Flask, render_template, request, redirect, flash, jsonify, send_file
 import sqlite3
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from io import BytesIO
 
 app = Flask(__name__)
 app.secret_key = "sua_chave_secreta_aqui"
@@ -94,6 +99,7 @@ def index():
 
     return render_template("index.html", eventos=eventos_completos, tecnicos_cadastrados=tecnicos_cadastrados, tipos_equipamentos=tipos_equipamentos)
 
+# Rota para relatorio_atividades
 @app.route("/relatorio_atividades/<int:evento_id>", methods=["GET", "POST"])
 def relatorio_atividades(evento_id):
     conn = get_db_connection()
@@ -275,6 +281,103 @@ def excluir_evento(evento_id):
     conn.close()
     flash("Evento excluído com sucesso!", "success")
     return redirect("/")
+
+# Rota para expoxtar para pdf
+@app.route("/exportar_pdf/<int:evento_id>")
+def exportar_pdf(evento_id):
+    conn = get_db_connection()
+
+    # Recupera os dados do evento
+    evento = conn.execute('SELECT * FROM eventos WHERE id = ?', (evento_id,)).fetchone()
+    if not evento:
+        conn.close()
+        flash("Evento não encontrado.", "error")
+        return redirect("/")
+
+    # Recupera os técnicos, equipamentos e atividades
+    tecnicos_evento = conn.execute('''
+        SELECT t.nome
+        FROM tecnicos t
+        JOIN eventos_tecnicos et ON t.id = et.tecnico_id
+        WHERE et.evento_id = ?
+    ''', (evento_id,)).fetchall()
+
+    equipamentos_evento = conn.execute('''
+        SELECT e.marca_modelo, e.tombamento, te.nome AS tipo
+        FROM equipamentos e
+        JOIN tipos_equipamentos te ON e.tipo_id = te.id
+        WHERE e.evento_id = ?
+    ''', (evento_id,)).fetchall()
+
+    atividades_evento = conn.execute('''
+        SELECT a.data, a.descricao, t.nome AS tecnico
+        FROM atividades a
+        JOIN tecnicos t ON a.tecnico_id = t.id
+        WHERE a.evento_id = ?
+    ''', (evento_id,)).fetchall()
+
+    conn.close()
+
+    # Cria o PDF
+    buffer = BytesIO()
+    pdf = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Adiciona conteúdo ao PDF
+    story.append(Paragraph("Relatório de Evento", styles['Title']))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph(f"<b>Nº SEI:</b> {evento['numero_sei']}", styles['Normal']))
+    story.append(Paragraph(f"<b>Tipo:</b> {evento['tipo']}", styles['Normal']))
+    story.append(Paragraph(f"<b>Data de Início:</b> {evento['data_inicio']}", styles['Normal']))
+    story.append(Paragraph(f"<b>Data de Fim:</b> {evento['data_fim']}", styles['Normal']))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("<b>Técnicos Responsáveis:</b>", styles['Normal']))
+    tecnicos_text = ", ".join([tecnico['nome'] for tecnico in tecnicos_evento])
+    story.append(Paragraph(tecnicos_text, styles['Normal']))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("<b>Equipamentos:</b>", styles['Normal']))
+    equipamentos_data = [["Tipo", "Marca/Modelo", "Tombamento"]]
+    for equipamento in equipamentos_evento:
+        equipamentos_data.append([equipamento['tipo'], equipamento['marca_modelo'], equipamento['tombamento']])
+    equipamentos_table = Table(equipamentos_data)
+    equipamentos_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    story.append(equipamentos_table)
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph("<b>Atividades Registradas:</b>", styles['Normal']))
+    atividades_data = [["Data", "Técnico", "Descrição"]]
+    for atividade in atividades_evento:
+        atividades_data.append([atividade['data'], atividade['tecnico'], atividade['descricao']])
+    atividades_table = Table(atividades_data)
+    atividades_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    story.append(atividades_table)
+
+    # Gera o PDF
+    pdf.build(story)
+
+    # Retorna o PDF como resposta
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name=f"relatorio_evento_{evento_id}.pdf", mimetype='application/pdf')
 
 if __name__ == "__main__":
     app.run(debug=True)
