@@ -50,4 +50,17 @@ CREATE TABLE IF NOT EXISTS equipamentos (
 )
 ''')
 
+# Cria a tabela de atividades
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS atividades (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    evento_id INTEGER NOT NULL,
+    tecnico_id INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    descricao TEXT NOT NULL,
+    FOREIGN KEY (evento_id) REFERENCES eventos (id),
+    FOREIGN KEY (tecnico_id) REFERENCES tecnicos (id)
+)
+''')
+
 conn.commit()

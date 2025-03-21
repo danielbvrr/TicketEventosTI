@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, flash
+from flask import Flask, render_template, request, redirect, flash, jsonify
 import sqlite3
 
 app = Flask(__name__)
@@ -53,7 +53,7 @@ def index():
     # Recupera os dados para exibição
     eventos = conn.execute('SELECT * FROM eventos').fetchall()
 
-    # Para cada evento, recupera os técnicos e equipamentos associados
+    # Para cada evento, recupera os técnicos, equipamentos e atividades associados
     eventos_completos = []
     for evento in eventos:
         # Recupera os técnicos do evento
@@ -72,11 +72,20 @@ def index():
             WHERE e.evento_id = ?
         ''', (evento['id'],)).fetchall()
 
+        # Recupera as atividades do evento
+        atividades_evento = conn.execute('''
+            SELECT a.data, a.descricao, t.nome AS tecnico
+            FROM atividades a
+            JOIN tecnicos t ON a.tecnico_id = t.id
+            WHERE a.evento_id = ?
+        ''', (evento['id'],)).fetchall()
+
         # Adiciona os dados ao evento
         eventos_completos.append({
             **evento,  # Desempacota os dados do evento
             "tecnicos": [tecnico['nome'] for tecnico in tecnicos_evento],
-            "equipamentos": equipamentos_evento
+            "equipamentos": equipamentos_evento,
+            "atividades": atividades_evento
         })
 
     tecnicos_cadastrados = conn.execute('SELECT * FROM tecnicos').fetchall()
@@ -85,115 +94,87 @@ def index():
 
     return render_template("index.html", eventos=eventos_completos, tecnicos_cadastrados=tecnicos_cadastrados, tipos_equipamentos=tipos_equipamentos)
 
-@app.route("/cadastrar_tecnico", methods=["GET", "POST"])
-def cadastrar_tecnico():
-    if request.method == "POST":
-        novo_tecnico = request.form.get("novo_tecnico")
-        if novo_tecnico:
-            conn = get_db_connection()
-            try:
-                conn.execute('INSERT INTO tecnicos (nome) VALUES (?)', (novo_tecnico,))
-                conn.commit()
-                flash("Técnico cadastrado com sucesso!", "success")
-            except sqlite3.IntegrityError:
-                flash("Técnico já cadastrado!", "error")
-            conn.close()
-        else:
-            flash("Nome do técnico inválido!", "error")
-        return redirect("/cadastrar_tecnico")
-    return render_template("cadastrar_tecnico.html")
-
-@app.route("/cadastrar_tipo_equipamento", methods=["GET", "POST"])
-def cadastrar_tipo_equipamento():
-    if request.method == "POST":
-        novo_tipo = request.form.get("novo_tipo")
-        if novo_tipo:
-            conn = get_db_connection()
-            try:
-                conn.execute('INSERT INTO tipos_equipamentos (nome) VALUES (?)', (novo_tipo,))
-                conn.commit()
-                flash("Tipo de equipamento cadastrado com sucesso!", "success")
-            except sqlite3.IntegrityError:
-                flash("Tipo de equipamento já cadastrado!", "error")
-            conn.close()
-        else:
-            flash("Nome do tipo de equipamento inválido!", "error")
-        return redirect("/cadastrar_tipo_equipamento")
-    return render_template("cadastrar_tipo_equipamento.html")
-
-@app.route("/editar/<int:evento_id>", methods=["GET", "POST"])
-def editar_evento(evento_id):
+@app.route("/relatorio_atividades/<int:evento_id>", methods=["GET", "POST"])
+def relatorio_atividades(evento_id):
     conn = get_db_connection()
     if request.method == "POST":
-        # Atualiza os dados do evento
-        numero_sei = request.form["numero_sei"]
-        tipo = request.form["tipo"]
-        data_inicio = request.form["data_inicio"]
-        data_fim = request.form["data_fim"]
-        tecnicos = request.form.getlist("tecnicos")
-        equipamentos_tipo = request.form.getlist("equipamentos_tipo[]")
-        equipamentos_marca_modelo = request.form.getlist("equipamentos_marca_modelo[]")
-        equipamentos_tombamento = request.form.getlist("equipamentos_tombamento[]")
+        # Coleta os dados do formulário
+        tecnico_id = request.form["tecnico"]
+        data = request.form["data"]
+        descricao = request.form["descricao"]
 
-        # Atualiza o evento
+        # Insere a atividade no banco de dados
         conn.execute('''
-            UPDATE eventos
-            SET numero_sei = ?, tipo = ?, data_inicio = ?, data_fim = ?
-            WHERE id = ?
-        ''', (numero_sei, tipo, data_inicio, data_fim, evento_id))
-
-        # Remove as associações antigas de técnicos e equipamentos
-        conn.execute('DELETE FROM eventos_tecnicos WHERE evento_id = ?', (evento_id,))
-        conn.execute('DELETE FROM equipamentos WHERE evento_id = ?', (evento_id,))
-
-        # Associa os novos técnicos ao evento
-        for tecnico_id in tecnicos:
-            conn.execute('''
-                INSERT INTO eventos_tecnicos (evento_id, tecnico_id)
-                VALUES (?, ?)
-            ''', (evento_id, tecnico_id))
-
-        # Insere os novos equipamentos
-        for tipo_id, marca_modelo, tombamento in zip(equipamentos_tipo, equipamentos_marca_modelo, equipamentos_tombamento):
-            conn.execute('''
-                INSERT INTO equipamentos (evento_id, tipo_id, marca_modelo, tombamento)
-                VALUES (?, ?, ?, ?)
-            ''', (evento_id, tipo_id, marca_modelo, tombamento))
-
+            INSERT INTO atividades (evento_id, tecnico_id, data, descricao)
+            VALUES (?, ?, ?, ?)
+        ''', (evento_id, tecnico_id, data, descricao))
         conn.commit()
-        flash("Evento atualizado com sucesso!", "success")
-        return redirect("/")
+        flash("Atividade registrada com sucesso!", "success")
+        return redirect(f"/relatorio_atividades/{evento_id}")
 
-    # Recupera os dados do evento para edição
+    # Recupera os dados do evento e as atividades
     evento = conn.execute('SELECT * FROM eventos WHERE id = ?', (evento_id,)).fetchone()
-    tecnicos_evento = conn.execute('''
-        SELECT t.id, t.nome
-        FROM tecnicos t
-        JOIN eventos_tecnicos et ON t.id = et.tecnico_id
-        WHERE et.evento_id = ?
+    atividades = conn.execute('''
+        SELECT a.data, a.descricao, t.nome AS tecnico
+        FROM atividades a
+        JOIN tecnicos t ON a.tecnico_id = t.id
+        WHERE a.evento_id = ?
     ''', (evento_id,)).fetchall()
-    equipamentos_evento = conn.execute('''
-        SELECT e.tipo_id, e.marca_modelo, e.tombamento
-        FROM equipamentos e
-        WHERE e.evento_id = ?
-    ''', (evento_id,)).fetchall()
-    tecnicos_cadastrados = conn.execute('SELECT * FROM tecnicos').fetchall()
-    tipos_equipamentos = conn.execute('SELECT * FROM tipos_equipamentos').fetchall()
+    tecnicos = conn.execute('SELECT * FROM tecnicos').fetchall()
     conn.close()
 
-    return render_template("editar.html", evento=evento, tecnicos_evento=tecnicos_evento, equipamentos_evento=equipamentos_evento, tecnicos_cadastrados=tecnicos_cadastrados, tipos_equipamentos=tipos_equipamentos)
+    return render_template("relatorio_atividades.html", evento=evento, atividades=atividades, tecnicos=tecnicos)
 
-@app.route("/excluir/<int:evento_id>")
-def excluir_evento(evento_id):
+# Rota para cadastrar técnico
+@app.route("/cadastrar_tecnico", methods=["POST"])
+def cadastrar_tecnico():
+    nome = request.form.get("novo_tecnico")
+    if nome:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO tecnicos (nome) VALUES (?)', (nome,))
+        tecnico_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "id": tecnico_id, "nome": nome})
+    else:
+        return jsonify({"success": False, "message": "Nome do técnico não pode estar vazio."})
+
+# Rota para cadastrar tipo de equipamento
+@app.route("/cadastrar_tipo_equipamento", methods=["POST"])
+def cadastrar_tipo_equipamento():
+    nome = request.form.get("novo_tipo")
+    if nome:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO tipos_equipamentos (nome) VALUES (?)', (nome,))
+        tipo_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "id": tipo_id, "nome": nome})
+    else:
+        return jsonify({"success": False, "message": "Nome do tipo de equipamento não pode estar vazio."})
+
+# Rota para editar técnico
+@app.route("/editar_tecnico/<int:tecnico_id>", methods=["GET", "POST"])
+def editar_tecnico(tecnico_id):
     conn = get_db_connection()
-    conn.execute('DELETE FROM eventos WHERE id = ?', (evento_id,))
-    conn.execute('DELETE FROM eventos_tecnicos WHERE evento_id = ?', (evento_id,))
-    conn.execute('DELETE FROM equipamentos WHERE evento_id = ?', (evento_id,))
-    conn.commit()
-    conn.close()
-    flash("Evento excluído com sucesso!", "success")
-    return redirect("/")
+    tecnico = conn.execute('SELECT * FROM tecnicos WHERE id = ?', (tecnico_id,)).fetchone()
+    if request.method == "POST":
+        novo_nome = request.form["novo_nome"]
+        if novo_nome:
+            conn.execute('UPDATE tecnicos SET nome = ? WHERE id = ?', (novo_nome, tecnico_id))
+            conn.commit()
+            conn.close()
+            flash("Técnico atualizado com sucesso!", "success")
+            return redirect("/")
+        else:
+            flash("Nome do técnico não pode estar vazio.", "error")
 
+    conn.close()
+    return render_template("editar_tecnico.html", tecnico=tecnico)
+
+# Rota para excluir técnico
 @app.route("/remover_tecnico/<int:tecnico_id>")
 def remover_tecnico(tecnico_id):
     conn = get_db_connection()
@@ -203,6 +184,7 @@ def remover_tecnico(tecnico_id):
     flash("Técnico removido com sucesso!", "success")
     return redirect("/")
 
+# Rota para excluir tipo de equipamento
 @app.route("/remover_tipo_equipamento/<int:tipo_id>")
 def remover_tipo_equipamento(tipo_id):
     conn = get_db_connection()
@@ -210,6 +192,88 @@ def remover_tipo_equipamento(tipo_id):
     conn.commit()
     conn.close()
     flash("Tipo de equipamento removido com sucesso!", "success")
+    return redirect("/")
+
+@app.route("/editar/<int:evento_id>", methods=["GET", "POST"])
+def editar_evento(evento_id):
+    conn = get_db_connection()
+
+    if request.method == "POST":
+        # Atualiza os dados do evento
+        numero_sei = request.form["numero_sei"]
+        tipo = request.form["tipo"]
+        data_inicio = request.form["data_inicio"]
+        data_fim = request.form["data_fim"]
+
+        conn.execute('''
+            UPDATE eventos
+            SET numero_sei = ?, tipo = ?, data_inicio = ?, data_fim = ?
+            WHERE id = ?
+        ''', (numero_sei, tipo, data_inicio, data_fim, evento_id))
+
+        # Atualiza os técnicos associados ao evento
+        tecnicos = request.form.getlist("tecnicos")
+        conn.execute('DELETE FROM eventos_tecnicos WHERE evento_id = ?', (evento_id,))
+        for tecnico_id in tecnicos:
+            conn.execute('INSERT INTO eventos_tecnicos (evento_id, tecnico_id) VALUES (?, ?)', (evento_id, tecnico_id))
+
+        # Atualiza os equipamentos associados ao evento
+        equipamentos_tipo = request.form.getlist("equipamentos_tipo[]")
+        equipamentos_marca_modelo = request.form.getlist("equipamentos_marca_modelo[]")
+        equipamentos_tombamento = request.form.getlist("equipamentos_tombamento[]")
+        conn.execute('DELETE FROM equipamentos WHERE evento_id = ?', (evento_id,))
+        for tipo_id, marca_modelo, tombamento in zip(equipamentos_tipo, equipamentos_marca_modelo, equipamentos_tombamento):
+            conn.execute('''
+                INSERT INTO equipamentos (evento_id, tipo_id, marca_modelo, tombamento)
+                VALUES (?, ?, ?, ?)
+            ''', (evento_id, tipo_id, marca_modelo, tombamento))
+
+        conn.commit()
+        conn.close()
+        flash("Evento atualizado com sucesso!", "success")
+        return redirect("/")
+
+    # Recupera os dados do evento
+    evento = conn.execute('SELECT * FROM eventos WHERE id = ?', (evento_id,)).fetchone()
+
+    # Recupera os técnicos associados ao evento
+    tecnicos_evento = conn.execute('''
+        SELECT t.id, t.nome
+        FROM tecnicos t
+        JOIN eventos_tecnicos et ON t.id = et.tecnico_id
+        WHERE et.evento_id = ?
+    ''', (evento_id,)).fetchall()
+
+    # Recupera os equipamentos associados ao evento
+    equipamentos_evento = conn.execute('''
+        SELECT e.id, e.tipo_id, e.marca_modelo, e.tombamento
+        FROM equipamentos e
+        WHERE e.evento_id = ?
+    ''', (evento_id,)).fetchall()
+
+    # Recupera todos os técnicos e tipos de equipamentos cadastrados
+    tecnicos_cadastrados = conn.execute('SELECT * FROM tecnicos').fetchall()
+    tipos_equipamentos = conn.execute('SELECT * FROM tipos_equipamentos').fetchall()
+
+    conn.close()
+
+    return render_template(
+        "editar.html",
+        evento=evento,
+        tecnicos_cadastrados=tecnicos_cadastrados,
+        tecnicos_evento=tecnicos_evento,
+        equipamentos_evento=equipamentos_evento,
+        tipos_equipamentos=tipos_equipamentos
+    )
+
+# Rota para excluir evento
+@app.route("/excluir/<int:evento_id>")
+def excluir_evento(evento_id):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM eventos WHERE id = ?', (evento_id,))
+    conn.commit()
+    conn.close()
+    flash("Evento excluído com sucesso!", "success")
     return redirect("/")
 
 if __name__ == "__main__":

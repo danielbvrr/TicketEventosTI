@@ -6,9 +6,63 @@
     <title>Registro de Eventos TI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        /* Estilo para o menu lateral */
+        .sidebar {
+            height: 100vh;
+            width: 300px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #f8f9fa;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        .main-content {
+            margin-left: 320px; /* Espaço para o menu lateral */
+            padding: 20px;
+        }
+    </style>
 </head>
 <body>
-    <div class="container mt-5">
+    <!-- Menu Lateral -->
+    <div class="sidebar">
+        <h3 class="mb-4">Menu</h3>
+
+        <!-- Lista de Técnicos Cadastrados -->
+        <div class="mb-4">
+            <h5>Técnicos Cadastrados</h5>
+            <ul id="tecnicosList" class="list-group">
+                {% for tecnico in tecnicos_cadastrados %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ tecnico.nome }}
+                        <div>
+                            <button class="btn btn-warning btn-sm" onclick="abrirModalEditarTecnico('{{ tecnico.id }}', '{{ tecnico.nome }}')">Editar</button>
+                            <a href="/remover_tecnico/{{ tecnico.id }}" class="btn btn-danger btn-sm">Excluir</a>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Lista de Tipos de Equipamentos Cadastrados -->
+        <div class="mb-4">
+            <h5>Tipos de Equipamentos Cadastrados</h5>
+            <ul id="tiposEquipamentosList" class="list-group">
+                {% for tipo in tipos_equipamentos %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ tipo.nome }}
+                        <div>
+                            <a href="/remover_tipo_equipamento/{{ tipo.id }}" class="btn btn-danger btn-sm">Excluir</a>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Conteúdo Principal -->
+    <div class="main-content">
         <h1 class="text-center">Registro de Eventos TI</h1>
 
         <!-- Mensagens de feedback -->
@@ -22,14 +76,78 @@
             {% endif %}
         {% endwith %}
 
-        <!-- Links para cadastrar técnicos e tipos de equipamentos -->
+        <!-- Botões para abrir os modals -->
         <div class="mb-4">
-            <a href="/cadastrar_tecnico" target="_blank" class="btn btn-primary">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#cadastrarTecnicoModal">
                 <i class="bi bi-person-plus"></i> Cadastrar Técnico
-            </a>
-            <a href="/cadastrar_tipo_equipamento" target="_blank" class="btn btn-primary">
+            </button>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#cadastrarTipoEquipamentoModal">
                 <i class="bi bi-pc"></i> Cadastrar Tipo de Equipamento
-            </a>
+            </button>
+        </div>
+
+        <!-- Modal para Cadastrar Técnico -->
+        <div class="modal fade" id="cadastrarTecnicoModal" tabindex="-1" aria-labelledby="cadastrarTecnicoModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="cadastrarTecnicoModalLabel">Cadastrar Técnico</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formCadastrarTecnico">
+                            <div class="mb-3">
+                                <label class="form-label">Nome do Técnico:</label>
+                                <input type="text" name="novo_tecnico" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Cadastrar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Cadastrar Tipo de Equipamento -->
+        <div class="modal fade" id="cadastrarTipoEquipamentoModal" tabindex="-1" aria-labelledby="cadastrarTipoEquipamentoModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="cadastrarTipoEquipamentoModalLabel">Cadastrar Tipo de Equipamento</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formCadastrarTipoEquipamento">
+                            <div class="mb-3">
+                                <label class="form-label">Nome do Tipo de Equipamento:</label>
+                                <input type="text" name="novo_tipo" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Cadastrar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Editar Técnico -->
+        <div class="modal fade" id="editarTecnicoModal" tabindex="-1" aria-labelledby="editarTecnicoModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editarTecnicoModalLabel">Editar Técnico</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formEditarTecnico" action="/editar_tecnico" method="post">
+                            <input type="hidden" name="tecnico_id" id="tecnicoId">
+                            <div class="mb-3">
+                                <label class="form-label">Nome do Técnico:</label>
+                                <input type="text" name="novo_nome" id="tecnicoNome" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">Salvar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Formulário para adicionar eventos -->
@@ -113,6 +231,7 @@
                         <td>
                             <a href="/editar/{{ evento.id }}" class="btn btn-warning btn-sm">Editar</a>
                             <a href="/excluir/{{ evento.id }}" class="btn btn-danger btn-sm">Excluir</a>
+                            <a href="/relatorio_atividades/{{ evento.id }}" class="btn btn-info btn-sm">Relatório</a>
                         </td>
                     </tr>
                 {% endfor %}
@@ -120,8 +239,29 @@
         </table>
     </div>
 
-    <!-- Script para adicionar/remover equipamentos -->
+    <!-- Scripts do Bootstrap e JavaScript personalizado -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Função para abrir o modal de edição de técnico
+        function abrirModalEditarTecnico(tecnicoId, tecnicoNome) {
+            document.getElementById('tecnicoId').value = tecnicoId;
+            document.getElementById('tecnicoNome').value = tecnicoNome;
+            new bootstrap.Modal(document.getElementById('editarTecnicoModal')).show();
+        }
+
+        // Fechar o modal após o cadastro ou edição
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('submit', function() {
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.querySelector('.modal.show'));
+                        if (modal) modal.hide();
+                    }, 1000); // Fecha o modal após 1 segundo (tempo para o servidor processar)
+                });
+            });
+        });
+
         // Adicionar novo campo de equipamento
         document.getElementById('adicionar-equipamento').addEventListener('click', function() {
             const container = document.getElementById('equipamentos-container');
@@ -146,6 +286,104 @@
                 event.target.closest('.equipamento-item').remove();
             }
         });
+
+        // Função para enviar o formulário de cadastro de técnico
+        document.getElementById('formCadastrarTecnico').addEventListener('submit', function (e) {
+            e.preventDefault(); // Impede o envio tradicional do formulário
+
+            const formData = new FormData(this); // Captura os dados do formulário
+
+            fetch('/cadastrar_tecnico', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Fecha o modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('cadastrarTecnicoModal'));
+                    modal.hide();
+
+                    // Atualiza a lista de técnicos na página principal
+                    const tecnicosList = document.getElementById('tecnicosList');
+                    const novoItem = document.createElement('li');
+                    novoItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    novoItem.innerHTML = `
+                        ${data.nome}
+                        <div>
+                            <button class="btn btn-warning btn-sm" onclick="abrirModalEditarTecnico('${data.id}', '${data.nome}')">Editar</button>
+                            <a href="/remover_tecnico/${data.id}" class="btn btn-danger btn-sm">Excluir</a>
+                        </div>
+                    `;
+                    tecnicosList.appendChild(novoItem);
+
+                    // Exibe mensagem de sucesso
+                    flashMessage('Técnico cadastrado com sucesso!', 'success');
+                } else {
+                    flashMessage(data.message || 'Erro ao cadastrar técnico.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                flashMessage('Erro ao cadastrar técnico.', 'error');
+            });
+        });
+
+        // Função para enviar o formulário de cadastro de tipo de equipamento
+        document.getElementById('formCadastrarTipoEquipamento').addEventListener('submit', function (e) {
+            e.preventDefault(); // Impede o envio tradicional do formulário
+
+            const formData = new FormData(this); // Captura os dados do formulário
+
+            fetch('/cadastrar_tipo_equipamento', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Fecha o modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('cadastrarTipoEquipamentoModal'));
+                    modal.hide();
+
+                    // Atualiza a lista de tipos de equipamentos na página principal
+                    const tiposList = document.getElementById('tiposEquipamentosList');
+                    const novoItem = document.createElement('li');
+                    novoItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    novoItem.innerHTML = `
+                        ${data.nome}
+                        <div>
+                            <a href="/remover_tipo_equipamento/${data.id}" class="btn btn-danger btn-sm">Excluir</a>
+                        </div>
+                    `;
+                    tiposList.appendChild(novoItem);
+
+                    // Exibe mensagem de sucesso
+                    flashMessage('Tipo de equipamento cadastrado com sucesso!', 'success');
+                } else {
+                    flashMessage(data.message || 'Erro ao cadastrar tipo de equipamento.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                flashMessage('Erro ao cadastrar tipo de equipamento.', 'error');
+            });
+        });
+
+        // Função para exibir mensagens de feedback
+        function flashMessage(message, category) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${category}`;
+            alertDiv.textContent = message;
+
+            const container = document.querySelector('.container');
+            container.insertBefore(alertDiv, container.firstChild);
+
+            // Remove a mensagem após 3 segundos
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+        }
     </script>
 </body>
 </html>
