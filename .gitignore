@@ -1,0 +1,25 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment
+.env
+.flaskenv
+
+# Database
+instance/
+*.db
+*.sqlite
+
+# VS Code
+.vscode/
+
+# Migrations (opcional)
+migrations/
+
+# Outros
+.DS_Store
+Thumbs.db
